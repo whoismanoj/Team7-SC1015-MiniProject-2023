@@ -1,5 +1,4 @@
 import os
-import json
 import numpy as np
 from PIL import Image
 from sklearn.model_selection import train_test_split
@@ -9,8 +8,6 @@ from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from sklearn.metrics import classification_report
-from tensorflow.keras.models import model_from_json
 
 class ImageProcessing:
 
@@ -114,7 +111,6 @@ class ImageProcessing:
         self.model.save_weights(self.weights_path)
         print("Model weights saved to", self.weights_path)
 
-
     def load_weights_if_exists(self):
         if os.path.exists(self.weights_path):
             self.model.load_weights(self.weights_path)
@@ -122,11 +118,12 @@ class ImageProcessing:
         else:
             print("No saved model weights found.")
 
-
-    def predict(self, X_test_img):
+    def predict(self, X_test_img, prod=False):
         if self.model is None:
             raise ValueError("Model has not been built yet. Call build_model() first.")
-        
         y_pred_img_onehot = self.model.predict(X_test_img)
-        y_pred_img = self.label_to_onehot(y_pred_img_onehot, inverse=True)
-        return y_pred_img
+        
+        if prod:
+            return y_pred_img_onehot
+        else:
+            return self.label_to_onehot(y_pred_img_onehot, inverse=True)

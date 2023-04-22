@@ -1,7 +1,8 @@
+import os
 import pandas as pd
-import numpy as np
 import re
 import nltk
+import joblib
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sklearn.model_selection import train_test_split
@@ -9,13 +10,14 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report
-
+from sklearn.preprocessing import LabelBinarizer
 
 class TextProcessing:
 
     def __init__(self, data_file_path):
         self.data_file_path = data_file_path
         self.pipeline = None
+        self.lb = None
 
     def load_data(self):
         return pd.read_excel(self.data_file_path)
@@ -55,28 +57,32 @@ class TextProcessing:
             ('classifier', LogisticRegression(solver='lbfgs', max_iter=1000))
         ])
         self.pipeline.fit(X_train, y_train)
+        self.save_model()
 
-    def predict(self, X_test):
+    def predict(self, X_test, prod=False):
         if self.pipeline is not None:
-            return self.pipeline.predict(X_test)
+            y_pred = self.pipeline.predict(X_test)
+            if prod:
+                return self.label_to_onehot(y_pred)
+            return y_pred
         else:
             raise ValueError("Model is not trained yet. Please train the model before making predictions.")
 
     def evaluate(self, y_test, y_pred):
         return classification_report(y_test, y_pred)
 
-    def process(self):
-        data = self.load_data()
-        data = self.preprocess_data(data)
-        X, y = data['Caption'], data['LABEL']
-        X_train, X_test, y_train, y_test = self.split_data(X, y)
-        self.train_model(X_train, y_train)
-        y_pred = self.predict(X_test)
-        report = self.evaluate(y_test, y_pred)
-        return report
+    def label_to_onehot(self, label, inverse=False):
+        if self.lb is None:
+            self.lb = LabelBinarizer()
+        if inverse:
+            return self.lb.inverse_transform(label)
+        return self.lb.fit_transform(label)
+    
+    def save_model(self, model_path='text_classifier.pkl'):
+        joblib.dump(self.pipeline, model_path)
 
-
-if __name__ == "__main__":
-    text_processing = TextProcessing('./Dataset/LabeledText.xlsx')
-    classification_report = text_processing.process()
-    print(classification_report)
+    def load_model(self, model_path='text_classifier.pkl'):
+        if os.path.exists(model_path):
+            self.pipeline = joblib.load(model_path)
+        else:
+            raise FileNotFoundError("Model file not found.")
